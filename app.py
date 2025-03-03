@@ -508,12 +508,14 @@ def tampilkan_stok_gudang():
     # Konversi data ke DataFrame
     df = pd.DataFrame(response.data)
 
+    # **Mengurai JSON object dari kolom wood_types dan suppliers**
+    df["Nama Kayu"] = df["wood_types"].apply(lambda x: x["wood_name"] if isinstance(x, dict) else None)
+    df["Kategori"] = df["wood_types"].apply(lambda x: x["category"] if isinstance(x, dict) else None)
+    df["Nama Supplier"] = df["suppliers"].apply(lambda x: x["name"] if isinstance(x, dict) else None)
+
     # Rename kolom agar lebih user-friendly
     df = df.rename(columns={
         "id": "ID Stok",
-        "wood_types.wood_name": "Nama Kayu",
-        "wood_types.category": "Kategori",
-        "suppliers.name": "Nama Supplier",
         "quantity": "Jumlah",
         "unit": "Satuan",
         "price_per_unit": "Harga per Unit",
@@ -525,7 +527,13 @@ def tampilkan_stok_gudang():
     # Format tanggal agar lebih mudah dibaca
     df["Tanggal Diterima"] = pd.to_datetime(df["Tanggal Diterima"]).dt.strftime("%d %B %Y")
     df["Tanggal Ditambahkan"] = pd.to_datetime(df["Tanggal Ditambahkan"]).dt.strftime("%d %B %Y - %H:%M")
+
+    # Hapus kolom JSON yang sudah diurai
+    df.drop(columns=["wood_types", "suppliers"], inplace=True)
+
+    # Set ID sebagai index
     df.set_index("ID Stok", inplace=True)
+
     # Filter status stok
     status_filter = st.selectbox("Filter Status", ["Semua", "Available", "Reserved", "Sold"])
     if status_filter != "Semua":
@@ -537,6 +545,7 @@ def tampilkan_stok_gudang():
 
     # Tampilkan tabel
     st.dataframe(df, use_container_width=True)
+
 
 def tampilkan_orders():
     st.subheader("📦 Daftar Pesanan (Orders)")
