@@ -6,6 +6,8 @@ from datetime import datetime
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+from datetime import date
+
 
 hide_menu_style = """
     <style>
@@ -732,6 +734,269 @@ def tampilkan_grafik_stok():
     st.pyplot(fig)
 
 # Main CRUD Disini sesuaikan loginnya admin atau customers
+def tambah_supplier():
+    st.subheader("➕ Tambah Supplier")
+
+    # Form input data
+    with st.form("form_tambah_supplier", clear_on_submit=True):
+        name = st.text_input("Nama Supplier", placeholder="Masukan Nama PT Supplier")
+        contact_person = st.text_input("Contact Person", placeholder="Masukan Nama Owner")
+        phone = st.text_input("Nomor Telepon", placeholder="Masukan Nomor Telepon")
+        email = st.text_input("Email", placeholder="Masukan Email")
+        address = st.text_area("Alamat", placeholder="Masukan Alamat")
+
+        submitted = st.form_submit_button("Tambah Supplier")
+        if submitted:
+            if not name:
+                st.warning("⚠️ Nama Supplier wajib diisi!")
+            else:
+                # Data yang akan disimpan ke Supabase
+                data = {
+                    "name": name,
+                    "contact_person": contact_person,
+                    "phone": phone,
+                    "email": email,
+                    "address": address
+                }
+
+                # Kirim data ke Supabase
+                try:
+                    response = supabase.table("suppliers").insert(data).execute()
+                    if response:
+                        st.success(f"✅ Supplier **{name}** berhasil ditambahkan!")
+                except Exception as e:
+                    st.error(f"❌ Terjadi kesalahan: {e}")
+
+def tambah_kayu():
+    st.subheader("🌲 Tambah Data Kayu")
+
+    # Form input
+    with st.form("form_tambah_kayu"):
+        wood_name = st.text_input("Nama Kayu", placeholder="Contoh: Merbau Type 0566")
+        category = st.selectbox("Kategori", ["Hardwood", "Softwood", "Plywood", "Others"])
+        description = st.text_area("Deskripsi", placeholder="Kayu Kualiatas : A/B/C")
+
+        # Tombol submit
+        submit_button = st.form_submit_button("Tambah Kayu")
+
+        if submit_button:
+            # Validasi input
+            if not wood_name.strip():
+                st.warning("⚠️ Nama kayu tidak boleh kosong.")
+                return
+            
+            # Proses insert data
+            data = {
+                "wood_name": wood_name,
+                "category": category,
+                "description": description
+            }
+
+            try:
+                response = supabase.table("wood_types").insert(data).execute()
+                if response.data:
+                    st.success(f"✅ Kayu **{wood_name}** berhasil ditambahkan!")
+                else:
+                    st.error("❌ Gagal menambahkan data kayu.")
+            except Exception as e:
+                st.error(f"🚨 Terjadi kesalahan: {e}")
+
+def get_wood_types():
+    response = supabase.table('wood_types').select("id, wood_name").execute()
+    return {item['wood_name']: item['id'] for item in response.data}
+
+def get_suppliers():
+    response = supabase.table('suppliers').select("id, name").execute()
+    return {item['name']: item['id'] for item in response.data}
+
+def add_warehouse_stock(data):
+    try:
+        supabase.table('warehouse_stock').insert(data).execute()
+        st.success(f"Stok berhasil ditambahkan!")
+    except Exception as e:
+        st.error(f"Terjadi kesalahan: {e}")
+
+
+def warehouse_stock_form():
+    st.title("📦 Tambah Stok Gudang")
+
+    wood_types = get_wood_types()
+    suppliers = get_suppliers()
+
+    # Pencarian untuk Jenis Kayu
+    wood_search = st.text_input("🔍 Cari Jenis Kayu").strip().lower()
+    filtered_wood_types = {k: v for k, v in wood_types.items() if wood_search in k.lower()}
+
+    # Pencarian untuk Supplier
+    supplier_search = st.text_input("🔍 Cari Supplier").strip().lower()
+    filtered_suppliers = {k: v for k, v in suppliers.items() if supplier_search in k.lower()}
+
+    with st.form("warehouse_stock_form"):
+        wood_type_id = st.selectbox("Jenis Kayu", list(filtered_wood_types.keys()) if filtered_wood_types else ["Tidak ditemukan"])
+        supplier_id = st.selectbox("Supplier", list(filtered_suppliers.keys()) if filtered_suppliers else ["Tidak ditemukan"])
+
+        quantity = st.number_input("Kuantitas", min_value=1, step=1)
+        unit = st.text_input("Satuan", placeholder="Contoh: meter, kg, liter")
+        price_per_unit = st.number_input("Harga per Unit", min_value=0.0, step=0.01)
+        received_date = st.date_input("Tanggal Diterima")
+        status = st.selectbox("Status", ["Available", "Reserved", "Sold"])
+        submit_button = st.form_submit_button("Tambah Stok")
+
+        if submit_button:
+            if wood_type_id != "Tidak ditemukan" and supplier_id != "Tidak ditemukan":
+                data = {
+                    "wood_type_id": wood_types[wood_type_id],
+                    "supplier_id": suppliers[supplier_id],
+                    "quantity": quantity,
+                    "unit": unit,
+                    "price_per_unit": price_per_unit,
+                    "received_date": received_date.strftime("%Y-%m-%d"),
+                    "status": status
+                }
+                add_warehouse_stock(data)
+                st.success("✅ Stok berhasil ditambahkan!")
+            else:
+                st.error("❌ Jenis kayu atau supplier tidak valid.")
+
+# Fungsi mendapatkan data order (dengan pagination untuk data besar)
+def get_orders():
+    # Simulasi data order dari database dengan lebih dari 1000 data
+    response = supabase.table('orders').select("id").execute()
+    return {item['id']: item['id'] for item in response.data}
+
+def add_shipment(data):
+    # Simulasi fungsi untuk menambahkan data ke database
+    st.success(f"Data berhasil ditambahkan: {data}")
+
+def shipment_form():
+    st.title("🚚 Tambah Pengiriman")
+
+    orders = get_orders()
+
+    with st.form("shipment_form"):
+        order_id = st.selectbox("Order ID", list(orders.keys()),
+                                index=0, format_func=lambda x: x,
+                                placeholder="Cari Order ID...",)
+        tracking_number = st.text_input("Nomor Resi", placeholder="Masukkan nomor resi")
+        shipping_company = st.text_input("Perusahaan Pengiriman", placeholder="Contoh: JNE, J&T, SiCepat")
+        estimated_delivery = st.date_input("Perkiraan Tanggal Tiba")
+        status = st.selectbox("Status", ["In Transit", "Delivered", "Failed"])
+        submit_button = st.form_submit_button("Tambah Pengiriman")
+
+        if submit_button:
+            data = {
+                "order_id": orders[order_id],
+                "tracking_number": tracking_number,
+                "shipping_company": shipping_company,
+                "estimated_delivery": estimated_delivery.strftime("%Y-%m-%d"),
+                "status": status
+            }
+            add_shipment(data)
+
+import streamlit as st
+from datetime import date
+
+# Fungsi untuk mendapatkan daftar kayu yang tersedia
+def get_available_wood():
+    response = supabase.table('warehouse_stock')\
+        .select("id, wood_type_id, quantity, price_per_unit, wood_types(wood_name)")\
+        .eq("status", "Available")\
+        .execute()
+
+    return {
+        item['wood_types']['wood_name']: item for item in response.data
+    }
+
+# Fungsi untuk menambah pesanan
+def add_order(data):
+    response = supabase.table('orders').insert(data).execute()
+    return response.data[0]['id']  # Ambil ID pesanan yang baru dibuat
+
+# Fungsi untuk menambah detail pesanan
+def add_order_details(data):
+    supabase.table('order_details').insert(data).execute()
+
+# Fungsi untuk memperbarui stok kayu
+def update_stock(wood_id, new_quantity):
+    supabase.table('warehouse_stock')\
+        .update({"quantity": new_quantity})\
+        .eq("id", wood_id)\
+        .execute()
+
+def order_form():
+    st.title("🛒 Tambah Pesanan")
+
+    customer_id = st.session_state["user"].get("id")
+    if not customer_id:
+        st.error("❌ Gagal mengambil data pelanggan.")
+        return
+
+    # Ambil data kayu dan simpan di session_state
+    if "wood_options" not in st.session_state or st.button("🔄 Refresh Data"):
+        st.session_state["wood_options"] = get_available_wood()
+
+    wood_options = st.session_state["wood_options"]
+
+    if "selected_wood" not in st.session_state:
+        st.session_state["selected_wood"] = list(wood_options.keys())[0]
+
+    with st.form("order_form"):
+        order_date = st.date_input("Tanggal Pesanan", value=date.today())
+        total_price = st.number_input("Total Harga", min_value=0.0, step=0.01)
+
+        st.subheader("Detail Pesanan")
+        selected_wood = st.selectbox(
+            "Jenis Kayu",
+            list(wood_options.keys()),
+            index=list(wood_options.keys()).index(st.session_state["selected_wood"]),
+            key="selected_wood"
+        )
+
+        # Ambil data stok dan harga sesuai pilihan
+        selected_wood_data = wood_options[selected_wood]
+        stock = selected_wood_data['quantity']
+        unit_price = selected_wood_data['price_per_unit']
+
+        st.write(f"📦 **Stok Tersedia:** {stock}")
+
+        quantity = st.number_input("Kuantitas", min_value=1, max_value=stock, step=1)
+        subtotal = quantity * unit_price
+        st.write(f"💰 **Subtotal:** Rp{subtotal:,.2f}")
+
+        submit_button = st.form_submit_button("Tambah Pesanan")
+        refresh_button = st.form_submit_button("Refresh")
+        if refresh_button:
+            st.success("✅ Di Refresh!")
+        if submit_button:
+            if quantity > stock:
+                st.error("❌ Stok tidak mencukupi untuk pesanan ini.")
+                return
+
+            order_data = {
+                "customer_id": customer_id,
+                "order_date": order_date.strftime("%Y-%m-%d"),
+                "total_price": total_price,
+                "status": "Pending"
+            }
+            order_id = add_order(order_data)
+
+            order_detail_data = {
+                "order_id": order_id,
+                "wood_type_id": selected_wood_data['id'],
+                "quantity": quantity,
+                "unit_price": unit_price,
+                "subtotal": subtotal
+            }
+            add_order_details(order_detail_data)
+
+            # Update stok
+            new_stock = stock - quantity
+            update_stock(selected_wood_data['id'], new_stock)
+
+            st.success("✅ Pesanan berhasil ditambahkan!")
+
+
+
 # 📌 Dashboard
 def dashboard():
     if "user" not in st.session_state:
@@ -742,7 +1007,7 @@ def dashboard():
 
     if role == "Admin":
         st.sidebar.title("📌 Admin Dashboard")
-        menu = st.sidebar.radio("Menu", ["Daftar Supplier", "Jenis Kayu","Stok Gudang","Daftar Pengiriman","Daftar Pembayaran", "Orders" ,"Grafik Stock","Manajemen Pengguna"])
+        menu = st.sidebar.radio("Menu", ["Daftar Supplier", "Jenis Kayu","Stok Gudang","Daftar Pengiriman","Daftar Pembayaran", "Orders" ,"Grafik Stock","Manajemen Pengguna","Input Supplier","Input Jenis Kayu","Input Stock Gudang","Input Pengiriman"])
         
         if menu == "Daftar Supplier":
             tampilkan_supplier()
@@ -758,6 +1023,14 @@ def dashboard():
             tampilkan_orders()
         elif menu == "Grafik Stock":
             tampilkan_grafik_stok()
+        elif menu == "Input Supplier":
+            tambah_supplier()
+        elif menu == "Input Jenis Kayu":
+            tambah_kayu()
+        elif menu == "Input Stock Gudang":
+            warehouse_stock_form()
+        elif menu == "Input Pengiriman":
+            shipment_form()
         elif menu == "Manajemen Pengguna":
             st.subheader("👤 Manajemen Pengguna")
             customers = supabase.table("customers").select("id, name, email").execute()
@@ -771,7 +1044,7 @@ def dashboard():
         menu = st.sidebar.radio("Menu", ["Pesan Kayu", "Detail Pesanan", "Status Pesanan","Status Pembayaran","Status Pengiriman"])
 
         if menu == "Pesan Kayu":
-            st.subheader("📥 Pesan Kayu Baru")
+            order_form()
 
         elif menu == "Detail Pesanan":
             lihat_pesanan_detail()   
