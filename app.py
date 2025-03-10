@@ -126,8 +126,9 @@ def lihat_pesanan_detail():
         df["Total Harga"] = df["Total Harga"].apply(lambda x: f"Rp. {x:,.0f}".replace(",", "."))
 
         # Format tanggal agar lebih mudah dibaca
-        df["Tanggal Pemesanan"] = pd.to_datetime(df["Tanggal Pemesanan"]).dt.strftime("%d %B %Y")
-        df["Waktu Dibuat"] = pd.to_datetime(df["Waktu Dibuat"]).dt.strftime("%d %B %Y  Jam : %H:%M")
+        df["Tanggal Pemesanan"] = pd.to_datetime(df["Tanggal Pemesanan"], errors='coerce').dt.strftime("%d %B %Y")
+        df["Waktu Dibuat"] = pd.to_datetime(df["Waktu Dibuat"], errors='coerce').dt.strftime("%d %B %Y  Jam : %H:%M")
+
 
         # Pilihan filter status
         status_filter = st.selectbox("Filter Status", ["Semua", "Shipped", "Cancelled", "Pending", "Completed", "Paid"])
@@ -209,8 +210,9 @@ def lihat_pesanan():
         df["Total Harga"] = df["Total Harga"].apply(lambda x: f"Rp. {x:,.0f}".replace(",","."))
         
         # Format tanggal agar lebih mudah dibaca
-        df["Tanggal Pemesanan"] = pd.to_datetime(df["Tanggal Pemesanan"]).dt.strftime("%d %B %Y")
-        df["Waktu Dibuat"] = pd.to_datetime(df["Waktu Dibuat"]).dt.strftime("%d %B %Y  Jam : %H:%M")
+        df["Tanggal Pemesanan"] = pd.to_datetime(df["Tanggal Pemesanan"], format='ISO8601', errors='coerce').dt.strftime("%d %B %Y")
+        df["Waktu Dibuat"] = pd.to_datetime(df["Waktu Dibuat"], format='ISO8601', errors='coerce').dt.strftime("%d %B %Y  Jam : %H:%M")
+
 
         # Set indeks ke "Order ID" sebelum styling
         df.set_index("Order ID", inplace=True)
@@ -577,8 +579,9 @@ def tampilkan_orders():
     })
 
     # Format tanggal
-    df["Tanggal Order"] = pd.to_datetime(df["Tanggal Order"]).dt.strftime("%d %B %Y")
-    df["Tanggal Ditambahkan"] = pd.to_datetime(df["Tanggal Ditambahkan"]).dt.strftime("%d %B %Y - %H:%M")
+    df["Tanggal Order"] = pd.to_datetime(df["Tanggal Order"], format='mixed', errors='coerce').dt.strftime("%d %B %Y")
+    df["Tanggal Ditambahkan"] = pd.to_datetime(df["Tanggal Ditambahkan"], format='mixed', errors='coerce').dt.strftime("%d %B %Y - %H:%M")
+
     df.set_index("ID Order", inplace=True)
     # Filter status order
     status_filter = st.selectbox("Filter Status Order", ["Semua", "Pending", "Paid", "Shipped", "Completed", "Cancelled"])
