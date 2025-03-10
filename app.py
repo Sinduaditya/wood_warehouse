@@ -438,7 +438,7 @@ def tampilkan_supplier():
     })
 
     # Format tanggal agar lebih mudah dibaca
-    df["Tanggal Ditambahkan"] = pd.to_datetime(df["Tanggal Ditambahkan"]).dt.strftime("%d %B %Y - %H:%M")
+    df["Tanggal Ditambahkan"] = pd.to_datetime(df["Tanggal Ditambahkan"], format='ISO8601').dt.strftime("%d %B %Y - %H:%M")
     df.set_index("ID Supplier", inplace=True)
     # Tampilkan tabel
     st.dataframe(df, use_container_width=True)
@@ -469,7 +469,7 @@ def tampilkan_jenis_kayu():
     })
 
     # Format tanggal agar lebih mudah dibaca
-    df["Tanggal Ditambahkan"] = pd.to_datetime(df["Tanggal Ditambahkan"]).dt.strftime("%d %B %Y - %H:%M")
+    df["Tanggal Ditambahkan"] = pd.to_datetime(df["Tanggal Ditambahkan"], format='ISO8601').dt.strftime("%d %B %Y - %H:%M")
 
     # Mapping kategori kayu dengan emoji
     kategori_emoji = {
@@ -527,8 +527,9 @@ def tampilkan_stok_gudang():
     })
 
     # Format tanggal agar lebih mudah dibaca
-    df["Tanggal Diterima"] = pd.to_datetime(df["Tanggal Diterima"]).dt.strftime("%d %B %Y")
-    df["Tanggal Ditambahkan"] = pd.to_datetime(df["Tanggal Ditambahkan"]).dt.strftime("%d %B %Y - %H:%M")
+    df["Tanggal Diterima"] = pd.to_datetime(df["Tanggal Diterima"], format='mixed', errors='coerce').dt.strftime("%d %B %Y")
+    df["Tanggal Ditambahkan"] = pd.to_datetime(df["Tanggal Ditambahkan"], format='mixed', errors='coerce').dt.strftime("%d %B %Y - %H:%M")
+
 
     # Hapus kolom JSON yang sudah diurai
     df.drop(columns=["wood_types", "suppliers"], inplace=True)
