@@ -7,15 +7,21 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import date
+from streamlit_option_menu import option_menu
 
+# Custom theme and styling
+st.set_page_config(
+    page_title="Wood Warehouse Management",
+    page_icon="🌲",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-hide_menu_style = """
-    <style>
-    [data-testid="stSidebarNav"] {display: none;}
-    </style>
-"""
+def load_css(file_name):
+    with open(file_name, "r") as f:
+        return f"<style>{f.read()}</style>"
 
-st.markdown(hide_menu_style, unsafe_allow_html=True)
+st.markdown(load_css("style.css"), unsafe_allow_html=True)
 
 
 # 🔑 Fungsi Hash & Verifikasi Password
@@ -32,36 +38,73 @@ def check_password(password, hashed_password):
 
 # 🌟 Login Function
 def login():
-    st.title("🔐 Login Wood Warehouse")
-
-    user_type = st.radio("Login sebagai:", ("Admin", "Customer"))
-    email = st.text_input("Email")
-    password = st.text_input("Password", type="password")
-
-    if st.button("Login"):
-        if user_type == "Admin":
-            result = supabase.table("admin").select("*").eq("email", email).execute()
-        else:
-            result = supabase.table("customers").select("*").eq("email", email).execute()
+    # Create visually appealing container for the login form
+    with st.container():
+        col1, col2, col3 = st.columns([1, 2, 1])
         
-        if result.data:
-            user = result.data[0]
+        with col2:
+            # Header with centered alignment and improved styling
+            st.markdown("<h1 style='text-align: center; margin-bottom: 0;'>🔐 Welcome Back</h1>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align: center; color: #6c757d; margin-bottom: 20px;'>Login to access your Wood Warehouse account</p>", unsafe_allow_html=True)
             
-            if "password" not in user:
-                st.error("❌ Error: Tidak ada password di database!")
-                return
+            # Card-like container with padding and border
+            with st.container():
+                st.markdown("<hr style='margin: 1rem 0;'>", unsafe_allow_html=True)
+                
+                # User type selection with better visual styling
+                st.markdown("<p style='font-weight: 500; margin-bottom: 8px;'>Select account type:</p>", unsafe_allow_html=True)
+                user_type = st.radio("", ("Customer", "Admin"), horizontal=True, label_visibility="collapsed")
+                
+                # Form inputs with icons and placeholders
+                email = st.text_input("📧 Email Address", 
+                                     placeholder="your.email@example.com")
+                
+                password = st.text_input("🔒 Password", 
+                                        type="password", 
+                                        placeholder="Enter your password")
+                
+                # Remember me option and forgot password link
+                cols = st.columns([1, 1])
+                with cols[0]:
+                    remember = st.checkbox("Remember me")
+                with cols[1]:
+                    st.markdown("<div style='text-align: right;'><a href='#' style='color: #1E88E5; text-decoration: none;'>Forgot password?</a></div>", unsafe_allow_html=True)
+                
+                # Login button with improved styling
+                login_btn = st.button("🚪 Login", 
+                                     type="primary",
+                                     use_container_width=True)
+                
+                # Register link with better styling
+                st.markdown("<div style='text-align: center; margin-top: 15px;'>Don't have an account? <a href='#' style='color: #1E88E5; text-decoration: none;'>Register here</a></div>", unsafe_allow_html=True)
+                
+                # Login logic - preserved from original
+                if login_btn:
+                    with st.spinner("Authenticating..."):
+                        if user_type == "Admin":
+                            result = supabase.table("admin").select("*").eq("email", email).execute()
+                        else:
+                            result = supabase.table("customers").select("*").eq("email", email).execute()
+                        
+                        if result.data:
+                            user = result.data[0]
+                            
+                            if "password" not in user:
+                                st.error("❌ Error: Password field not found in database!")
+                                return
 
-            if check_password(password, user["password"]):
-                st.success(f"✅ Login berhasil sebagai {user_type}")
-                st.session_state["user"] = user
-                st.session_state["role"] = user_type
-                st.rerun()
-            else:
-                st.error("❌ Password salah")
-        else:
-            st.error("❌ Email tidak ditemukan")
+                            if check_password(password, user["password"]):
+                                st.success(f"✅ Login successful as {user_type}")
+                                st.session_state["user"] = user
+                                st.session_state["role"] = user_type
+                                st.balloons()
+                                st.rerun()
+                            else:
+                                st.error("❌ Incorrect password. Please try again.")
+                        else:
+                            st.error("❌ Email not found. Please check your email or register.")
 
-# 🆕 Register Function (Customer)
+
 def register():
     st.title("📝 Register Customer")
     name = st.text_input("Nama Perusahaan")
@@ -551,7 +594,6 @@ def tampilkan_stok_gudang():
     # Tampilkan tabel
     st.dataframe(df, use_container_width=True)
 
-
 def tampilkan_orders():
     st.subheader("📦 Daftar Pesanan (Orders)")
 
@@ -713,29 +755,120 @@ def get_category_quantity():
 
 # Fungsi untuk menampilkan diagram batang
 def tampilkan_grafik_stok():
-    st.subheader("📊 Diagram Batang - Stok Kayu Berdasarkan Kategori")
+    st.subheader("📊 Inventory Visualization")
 
     # Ambil data dari Supabase
     df = get_category_quantity()
 
     if df.empty:
-        st.warning("⚠️ Tidak ada data stok kayu yang tersedia.")
+        st.warning("⚠️ No wood stock data available.")
         return
 
-    # Buat Bar Chart
-    fig, ax = plt.subplots(figsize=(8, 5))
-    ax.bar(df["category"], df["total_quantity"], color=['blue', 'green', 'red', 'orange'])
+    # Create tabs for different visualization options
+    tab1, tab2 = st.tabs(["📊 Bar Chart", "🥧 Pie Chart"])
+    
+    with tab1:
+        # Use a more modern color palette
+        colors = ['#3498db', '#2ecc71', '#e74c3c', '#f39c12']
+        
+        # Create Bar Chart with enhanced styling
+        fig, ax = plt.subplots(figsize=(10, 6))
+        bars = ax.bar(
+            df["category"], 
+            df["total_quantity"], 
+            color=colors[:len(df)],
+            width=0.6,
+            edgecolor='white',
+            linewidth=1,
+            alpha=0.8
+        )
+        
+        # Add data labels on top of bars
+        for bar in bars:
+            height = bar.get_height()
+            ax.text(
+                bar.get_x() + bar.get_width()/2., 
+                height + 0.1,
+                f'{int(height)}',
+                ha='center', 
+                va='bottom',
+                fontweight='bold'
+            )
 
-    # Tambahkan Label
-    ax.set_xlabel("Kategori Jenis Kayu")
-    ax.set_ylabel("Total Quantity (Batang)")
-    ax.set_title("Total Stok Kayu Berdasarkan Kategori Di Gudang")
-    ax.set_xticks(range(len(df["category"])))
-    ax.set_xticklabels(df["category"], rotation=30)
-    ax.grid(axis='y')
-
-    # Tampilkan Grafik di Streamlit
-    st.pyplot(fig)
+        # Enhanced styling
+        ax.set_xlabel("Wood Category", fontsize=12, fontweight='bold')
+        ax.set_ylabel("Total Quantity", fontsize=12, fontweight='bold')
+        ax.set_title("Warehouse Stock by Category", fontsize=14, fontweight='bold')
+        ax.set_xticks(range(len(df["category"])))
+        ax.set_xticklabels(df["category"], rotation=30)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.grid(axis='y', linestyle='--', alpha=0.7)
+        
+        # Add background color
+        fig.patch.set_facecolor('#f5f5f5')
+        ax.set_facecolor('#f5f5f5')
+        
+        plt.tight_layout()
+        
+        # Display chart
+        st.pyplot(fig)
+        
+        # Add insights section
+        if len(df) > 0:
+            total_stock = df["total_quantity"].sum()
+            max_category = df.loc[df["total_quantity"].idxmax(), "category"]
+            
+            st.markdown(f"""
+            ### 📈 Inventory Insights
+            - **Total stock**: {int(total_stock)} units
+            - **Highest inventory**: {max_category} ({int(df["total_quantity"].max())} units)
+            - **Categories**: {len(df)} wood types
+            """)
+    
+    with tab2:
+        # Create Pie Chart for percentage distribution
+        fig, ax = plt.subplots(figsize=(8, 8))
+        
+        # Calculate percentages
+        df['percentage'] = df['total_quantity'] / df['total_quantity'].sum() * 100
+        
+        # Create pie chart with enhanced styling
+        wedges, texts, autotexts = ax.pie(
+            df['total_quantity'], 
+            labels=df['category'],
+            autopct='%1.1f%%',
+            startangle=90,
+            shadow=False,
+            colors=colors[:len(df)],
+            wedgeprops={'edgecolor': 'white', 'linewidth': 2, 'antialiased': True},
+            textprops={'fontsize': 12, 'fontweight': 'bold'}
+        )
+        
+        # Style the percentage texts
+        for autotext in autotexts:
+            autotext.set_color('white')
+            autotext.set_fontsize(10)
+            autotext.set_fontweight('bold')
+            
+        ax.set_title('Stock Distribution by Category', fontsize=14, fontweight='bold')
+        ax.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle
+        
+        plt.tight_layout()
+        
+        # Display pie chart
+        st.pyplot(fig)
+        
+        # Display data table with percentages
+        st.markdown("#### Detailed Breakdown")
+        display_df = df[['category', 'total_quantity', 'percentage']].copy()
+        display_df.columns = ['Category', 'Quantity', 'Percentage (%)']
+        display_df['Percentage (%)'] = display_df['Percentage (%)'].round(1)
+        
+        st.dataframe(
+            display_df.style.background_gradient(cmap='Blues', subset=['Quantity']),
+            use_container_width=True
+        )
 
 # Main CRUD Disini sesuaikan loginnya admin atau customers
 def tambah_supplier():
@@ -897,9 +1030,6 @@ def shipment_form():
             }
             add_shipment(data)
 
-import streamlit as st
-from datetime import date
-
 # Fungsi untuk mendapatkan daftar kayu yang tersedia
 def get_available_wood():
     response = supabase.table('warehouse_stock')\
@@ -1008,65 +1138,181 @@ def dashboard():
         return
     
     role = st.session_state["role"]
+    user = st.session_state["user"]
+    
+    # Enhanced sidebar with user info card
+    with st.sidebar:
+        # User profile section
+        with st.container():
+            st.markdown(f"""
+            <div style="padding: 10px; border-radius: 10px; background-color: rgba(255,255,255,0.1); margin-bottom: 20px">
+                <h3 style="margin:0;">👋 Welcome, {user.get('name', user.get('email', 'User'))}</h3>
+                <p style="opacity:0.8; margin:0; font-size:14px">{role}</p>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    # Dashboard header with KPIs
+    current_date = datetime.now().strftime("%d %B %Y")
+    st.markdown(f"""
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px">
+        <h1 style="margin: 0;">🌲 Wood Warehouse Dashboard</h1>
+        <p style="color: #888; margin: 0">{current_date}</p>
+    </div>
+    <hr>
+    """, unsafe_allow_html=True)
 
     if role == "Admin":
-        st.sidebar.title("📌 Admin Dashboard")
-        menu = st.sidebar.radio("Menu", ["Daftar Supplier", "Jenis Kayu","Stok Gudang","Daftar Pengiriman","Daftar Pembayaran", "Orders" ,"Grafik Stock","Manajemen Pengguna","Input Supplier","Input Jenis Kayu","Input Stock Gudang","Input Pengiriman"])
-        
+        # Admin dashboard with organized sections
+        with st.sidebar:
+            st.markdown("### 📌 Admin Navigation")            
+            menu = st.radio("Pilih Menu", [
+            "Stok Gudang", "Grafik Stock", "Daftar Supplier", "Jenis Kayu",
+            "Input Supplier", "Input Jenis Kayu", "Input Stock Gudang",
+            "Orders", "Daftar Pengiriman", "Daftar Pembayaran", "Input Pengiriman",
+            "Manajemen Pengguna"
+        ])
+
+       
+        # Display content based on menu selection
         if menu == "Daftar Supplier":
-            tampilkan_supplier()
+            with st.container():
+                tampilkan_supplier()
         elif menu == "Jenis Kayu":
-            tampilkan_jenis_kayu()
+            with st.container():
+                tampilkan_jenis_kayu()
         elif menu == "Stok Gudang":
-            tampilkan_stok_gudang()
+            with st.container():
+                tampilkan_stok_gudang()
         elif menu == "Daftar Pengiriman":
-            tampilkan_pengiriman()
+            with st.container():
+                tampilkan_pengiriman()
         elif menu == "Daftar Pembayaran":
-            tampilkan_pembayaran()
+            with st.container():
+                tampilkan_pembayaran()
         elif menu == "Orders":
-            tampilkan_orders()
+            with st.container():
+                tampilkan_orders()
         elif menu == "Grafik Stock":
-            tampilkan_grafik_stok()
+            col1, col2 = st.columns([2, 1])
+            with col1:
+                tampilkan_grafik_stok()
+            with col2:
+                # Quick stats card
+                st.markdown("""
+                <div style="padding: 20px; border-radius: 10px; background-color: #f0f2f6; margin-bottom: 20px">
+                    <h4 style="margin-top:0">📈 Inventory Overview</h4>
+                    <p style="color: #000000;">View your warehouse stock visualization and monitor inventory levels by category.</p>
+                </div>
+                """, unsafe_allow_html=True)
         elif menu == "Input Supplier":
-            tambah_supplier()
+            with st.container():
+                tambah_supplier()
         elif menu == "Input Jenis Kayu":
-            tambah_kayu()
+            with st.container():
+                tambah_kayu()
         elif menu == "Input Stock Gudang":
-            warehouse_stock_form()
+            with st.container():
+                warehouse_stock_form()
         elif menu == "Input Pengiriman":
-            shipment_form()
+            with st.container():
+                shipment_form()
         elif menu == "Manajemen Pengguna":
             st.subheader("👤 Manajemen Pengguna")
-            customers = supabase.table("customers").select("id, name, email").execute()
+            
+            # Enhanced user list with search and tabs
+            customers = supabase.table("customers").select("id, name, email, created_at").execute()
+            
             if customers.data:
-                st.table(customers.data)
+                # Search filter
+                search = st.text_input("🔍 Search users by name or email", "")
+                
+                if search:
+                    filtered_customers = [c for c in customers.data if search.lower() in c.get('name', '').lower() or 
+                                         search.lower() in c.get('email', '').lower()]
+                else:
+                    filtered_customers = customers.data
+                
+                # Convert to DataFrame for better display
+                df = pd.DataFrame(filtered_customers)
+                df['created_at'] = pd.to_datetime(df['created_at']).dt.strftime("%d %B %Y")
+                df = df.rename(columns={
+                    "id": "ID",
+                    "name": "Company Name",
+                    "email": "Email",
+                    "created_at": "Registration Date"
+                })
+                
+                # Display with highlighting
+                st.dataframe(df, use_container_width=True)
+                
+                st.markdown(f"**Total Users:** {len(filtered_customers)} (Filtered) / {len(customers.data)} (Total)")
             else:
-                st.write("Tidak ada pengguna yang terdaftar.")
+                st.info("No users registered in the system.")
 
-    else:
-        st.sidebar.title("🛍️ Customer Dashboard")
-        menu = st.sidebar.radio("Menu", ["Pesan Kayu", "Detail Pesanan", "Status Pesanan","Status Pembayaran","Status Pengiriman"])
-
+    else:  # Customer Dashboard
+        # Enhanced customer sidebar navigation
+        with st.sidebar:
+            st.markdown("### 🛍️ Customer Navigation")
+            selected = option_menu(
+                menu_title=None,
+                options=["Pesan Kayu", "Detail Pesanan", "Status Pesanan", "Status Pembayaran", "Status Pengiriman"],
+                icons=["basket", "receipt", "list-check", "credit-card", "truck"],
+                default_index=0,
+            )
+            menu = selected
+        
+        # Display customer dashboard based on selection
         if menu == "Pesan Kayu":
+            # Add a nice intro card before the form
+            st.markdown("""
+            <div style="padding: 15px; border-radius: 10px; background: linear-gradient(to right, #4CAF50, #2E7D32); color: white; margin-bottom: 20px">
+                <h2 style="margin:0">🌲 Order Wood Products</h2>
+                <p>Select from our high-quality wood inventory and place your order</p>
+            </div>
+            """, unsafe_allow_html=True)
             order_form()
 
         elif menu == "Detail Pesanan":
+            st.markdown("""
+            <div style="padding: 15px; border-radius: 10px; background: linear-gradient(to right, #1976D2, #0D47A1); color: white; margin-bottom: 20px">
+                <h2 style="margin:0">📋 Order Details</h2>
+                <p>View the complete details of your orders</p>
+            </div>
+            """, unsafe_allow_html=True)
             lihat_pesanan_detail()   
 
         elif menu == "Status Pesanan":
+            st.markdown("""
+            <div style="padding: 15px; border-radius: 10px; background: linear-gradient(to right, #7B1FA2, #4A148C); color: white; margin-bottom: 20px">
+                <h2 style="margin:0">📊 Order Status</h2>
+                <p>Track the current status of your orders</p>
+            </div>
+            """, unsafe_allow_html=True)
             lihat_pesanan()
         
         elif menu == "Status Pembayaran":
+            st.markdown("""
+            <div style="padding: 15px; border-radius: 10px; background: linear-gradient(to right, #FF9800, #E65100); color: white; margin-bottom: 20px">
+                <h2 style="margin:0">💳 Payment Status</h2>
+                <p>Monitor your payment status and history</p>
+            </div>
+            """, unsafe_allow_html=True)
             status_pembayaran()
         
         elif menu == "Status Pengiriman":
+            st.markdown("""
+            <div style="padding: 15px; border-radius: 10px; background: linear-gradient(to right, #F44336, #B71C1C); color: white; margin-bottom: 20px">
+                <h2 style="margin:0">🚚 Shipping Status</h2>
+                <p>Track your shipments in real-time</p>
+            </div>
+            """, unsafe_allow_html=True)
             status_pengiriman()
 
-
-    # 🚪 Tombol Logout
-    if st.sidebar.button("Logout ❌"):
-        logout()
-# END Main CRUD Disini sesuaikan loginnya admin atau customers
+    # Enhanced logout button
+    with st.sidebar:
+        st.markdown("<hr>", unsafe_allow_html=True)
+        if st.button("🚪 Logout", type="primary", use_container_width=True):
+            logout()
 
 # 🎯 Main App
 def main():
