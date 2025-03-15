@@ -1,13 +1,13 @@
 import streamlit as st
 from supabase import create_client
-import bcrypt
-from config import supabase  
+from config import supabase     # import dari config.py
 from datetime import datetime
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import date
 from streamlit_option_menu import option_menu
+from auth import login, register, logout  # impoer dari auth.py
 
 # Custom theme and styling
 st.set_page_config(
@@ -23,119 +23,6 @@ def load_css(file_name):
 
 st.markdown(load_css("style.css"), unsafe_allow_html=True)
 
-
-# 🔑 Fungsi Hash & Verifikasi Password
-def hash_password(password):
-    salt = bcrypt.gensalt()
-    return bcrypt.hashpw(password.encode(), salt).decode("utf-8")
-
-def check_password(password, hashed_password):
-    try:
-        return bcrypt.checkpw(password.encode(), hashed_password.encode())
-    except Exception as e:
-        st.error(f"⚠️ Error saat memverifikasi password: {e}")
-        return False
-
-# 🌟 Login Function
-def login():
-    # Create visually appealing container for the login form
-    with st.container():
-        col1, col2, col3 = st.columns([1, 2, 1])
-        
-        with col2:
-            # Header with centered alignment and improved styling
-            st.markdown("<h1 style='text-align: center; margin-bottom: 0;'>🔐 Welcome Back</h1>", unsafe_allow_html=True)
-            st.markdown("<p style='text-align: center; color: #6c757d; margin-bottom: 20px;'>Login to access your Wood Warehouse account</p>", unsafe_allow_html=True)
-            
-            # Card-like container with padding and border
-            with st.container():
-                st.markdown("<hr style='margin: 1rem 0;'>", unsafe_allow_html=True)
-                
-                # User type selection with better visual styling
-                st.markdown("<p style='font-weight: 500; margin-bottom: 8px;'>Select account type:</p>", unsafe_allow_html=True)
-                user_type = st.radio("", ("Customer", "Admin"), horizontal=True, label_visibility="collapsed")
-                
-                # Form inputs with icons and placeholders
-                email = st.text_input("📧 Email Address", 
-                                     placeholder="your.email@example.com")
-                
-                password = st.text_input("🔒 Password", 
-                                        type="password", 
-                                        placeholder="Enter your password")
-                
-                # Remember me option and forgot password link
-                cols = st.columns([1, 1])
-                with cols[0]:
-                    remember = st.checkbox("Remember me")
-                with cols[1]:
-                    st.markdown("<div style='text-align: right;'><a href='#' style='color: #1E88E5; text-decoration: none;'>Forgot password?</a></div>", unsafe_allow_html=True)
-                
-                # Login button with improved styling
-                login_btn = st.button("🚪 Login", 
-                                     type="primary",
-                                     use_container_width=True)
-                
-                # Register link with better styling
-                st.markdown("<div style='text-align: center; margin-top: 15px;'>Don't have an account? <a href='#' style='color: #1E88E5; text-decoration: none;'>Register here</a></div>", unsafe_allow_html=True)
-                
-                # Login logic - preserved from original
-                if login_btn:
-                    with st.spinner("Authenticating..."):
-                        if user_type == "Admin":
-                            result = supabase.table("admin").select("*").eq("email", email).execute()
-                        else:
-                            result = supabase.table("customers").select("*").eq("email", email).execute()
-                        
-                        if result.data:
-                            user = result.data[0]
-                            
-                            if "password" not in user:
-                                st.error("❌ Error: Password field not found in database!")
-                                return
-
-                            if check_password(password, user["password"]):
-                                st.success(f"✅ Login successful as {user_type}")
-                                st.session_state["user"] = user
-                                st.session_state["role"] = user_type
-                                st.balloons()
-                                st.rerun()
-                            else:
-                                st.error("❌ Incorrect password. Please try again.")
-                        else:
-                            st.error("❌ Email not found. Please check your email or register.")
-
-
-def register():
-    st.title("📝 Register Customer")
-    name = st.text_input("Nama Perusahaan")
-    contact_person = st.text_input("Nama Pemilik")
-    email = st.text_input("Email")
-    password = st.text_input("Password", type="password")
-    phone = st.text_input("Nomor Telepon")
-    address = st.text_area("Alamat")
-
-    if st.button("Register"):
-        hashed_password = hash_password(password)  # Simpan password dalam bentuk hash
-        data = {
-            "name": name,
-            "contact_person": contact_person,
-            "phone": phone,
-            "email": email,
-            "created_at": datetime.now().isoformat(),
-            "password": hashed_password
-        }
-        response = supabase.table("customers").insert(data).execute()
-
-        if response.data:
-            st.success("✅ Registrasi berhasil! Silakan login.")
-        else:
-            st.error("❌ Registrasi gagal. Coba lagi.")
-
-# 🚪 Logout Function
-def logout():
-    st.session_state.pop("user", None)
-    st.session_state.pop("role", None)
-    st.rerun()
 
 def lihat_pesanan_detail():
     st.subheader("📋 Riwayat Pesanan Anda")
@@ -1130,7 +1017,6 @@ def order_form():
             st.success("✅ Pesanan berhasil ditambahkan!")
 
 
-
 # 📌 Dashboard
 def dashboard():
     if "user" not in st.session_state:
@@ -1166,9 +1052,13 @@ def dashboard():
         with st.sidebar:
             st.markdown("### 📌 Admin Navigation")            
             menu = st.radio("Pilih Menu", [
-            "Stok Gudang", "Grafik Stock", "Daftar Supplier", "Jenis Kayu",
-            "Input Supplier", "Input Jenis Kayu", "Input Stock Gudang",
-            "Orders", "Daftar Pengiriman", "Daftar Pembayaran", "Input Pengiriman",
+            # Inventory Monitoring
+            "Stok Gudang", "Grafik Stock", "Jenis Kayu", "Daftar Supplier",
+            # Data Input
+            "Input Stock Gudang", "Input Jenis Kayu", "Input Supplier",
+            # Order Processing
+            "Orders", "Daftar Pembayaran", "Daftar Pengiriman", "Input Pengiriman",
+            # Administration
             "Manajemen Pengguna"
         ])
 
