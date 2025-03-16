@@ -928,9 +928,13 @@ def update_stock(wood_id, new_quantity):
         .eq("id", wood_id)\
         .execute()
 
+import streamlit as st
+from datetime import date
+
 def order_form():
     st.title("🛒 Tambah Pesanan")
 
+    # Cek apakah pengguna sudah login
     customer_id = st.session_state["user"].get("id")
     if not customer_id:
         st.error("❌ Gagal mengambil data pelanggan.")
@@ -947,7 +951,6 @@ def order_form():
 
     with st.form("order_form"):
         order_date = st.date_input("Tanggal Pesanan", value=date.today())
-        total_price = st.number_input("Total Harga", min_value=0.0, step=0.01)
 
         st.subheader("Detail Pesanan")
         selected_wood = st.selectbox(
@@ -965,22 +968,30 @@ def order_form():
         st.write(f"📦 **Stok Tersedia:** {stock}")
 
         quantity = st.number_input("Kuantitas", min_value=1, max_value=stock, step=1)
+
+        # **Hitung Total Harga Secara Otomatis**
         subtotal = quantity * unit_price
         st.write(f"💰 **Subtotal:** Rp{subtotal:,.2f}")
 
+        # **Tampilkan Total Harga Otomatis**
+        st.write(f"🛒 **Total Harga:** Rp{subtotal:,.2f}")
+
         submit_button = st.form_submit_button("Tambah Pesanan")
         refresh_button = st.form_submit_button("Refresh")
+
         if refresh_button:
-            st.success("✅ Di Refresh!")
+            st.success("✅ Data telah diperbarui!")
+
         if submit_button:
             if quantity > stock:
                 st.error("❌ Stok tidak mencukupi untuk pesanan ini.")
                 return
 
+            # **Simpan pesanan ke database**
             order_data = {
                 "customer_id": customer_id,
                 "order_date": order_date.strftime("%Y-%m-%d"),
-                "total_price": total_price,
+                "total_price": subtotal,  # **Gunakan subtotal sebagai total harga**
                 "status": "Pending"
             }
             order_id = add_order(order_data)
@@ -994,8 +1005,9 @@ def order_form():
             }
             add_order_details(order_detail_data)
 
-            # Update stok
+            # Update stok kayu
             new_stock = stock - quantity
             update_stock(selected_wood_data['id'], new_stock)
 
             st.success("✅ Pesanan berhasil ditambahkan!")
+
