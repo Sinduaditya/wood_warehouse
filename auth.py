@@ -57,6 +57,7 @@ def register():
             "contact_person": contact_person,
             "phone": phone,
             "email": email,
+            "address": address,  # Pastikan alamat juga dikirim jika diperlukan
             "created_at": datetime.now().isoformat(),
             "password": hashed_password
         }

@@ -149,9 +149,77 @@ def lihat_pesanan():
         styled_df = df.style.applymap(highlight_status, subset=["Status Pesanan"])
 
         # Tampilkan tabel
-        
-
         st.dataframe(styled_df, use_container_width=True)
+        
+        # Tambahkan fitur pembayaran
+        st.subheader("💰 Bayar Pesanan")
+        
+        # Get the raw data for processing payments
+        raw_data = response.data
+        
+        # Create payment section for each order
+        for order in raw_data:
+            order_id = order['id']
+            total_price = order['total_price']
+            status = order['status']
+            
+            # Only show payment option for orders that are not paid/cancelled
+            if status != "Paid" and status != "Cancelled":
+                with st.expander(f"Bayar Order ID: {order_id} - Total: Rp. {total_price:,.0f}".replace(",",".")):
+                    with st.form(key=f"payment_form_{order_id}"):
+                        st.write("### Form Pembayaran")
+                        
+                        # Payment method dropdown
+                        payment_method = st.selectbox(
+                            "Metode Pembayaran",
+                            ["Cash", "Bank Transfer"],
+                            key=f"payment_method_{order_id}"
+                        )
+                        
+                        # Display amount (read-only)
+                        st.write(f"**Total Pembayaran:** Rp. {total_price:,.0f}".replace(",","."))
+                        
+                        # Payment date
+                        payment_date = st.date_input(
+                            "Tanggal Pembayaran",
+                            datetime.now().date(),
+                            key=f"payment_date_{order_id}"
+                        )
+                        
+                        # Submit button
+                        submitted = st.form_submit_button("Bayar Sekarang")
+                        
+                        if submitted:
+                            # Create payment record
+                            payment_data = {
+                                "order_id": order_id,
+                                "payment_method": payment_method,
+                                "amount": total_price,
+                                "payment_status": "Completed",
+                                "payment_date": payment_date.strftime("%Y-%m-%d")
+                            }
+                            
+                            try:
+                                # Check if payment already exists for this order
+                                check_payment = supabase.table("payments").select("*").eq("order_id", order_id).execute()
+                                
+                                if check_payment.data:
+                                    st.warning(f"Pembayaran untuk Order ID {order_id} sudah ada.")
+                                else:
+                                    # Insert payment record
+                                    payment_response = supabase.table("payments").insert(payment_data).execute()
+                                    
+                                    # Update order status
+                                    order_update = supabase.table("orders").update({"status": "Paid"}).eq("id", order_id).execute()
+                                    
+                                    st.success(f"✅ Pembayaran untuk Order ID {order_id} berhasil! Status telah diperbarui.")
+                                    st.balloons()
+                                    
+                                    # Refresh the page
+                                    st.rerun()
+                                
+                            except Exception as e:
+                                st.error(f"❌ Terjadi kesalahan: {e}")
     else:
         st.info("📭 Anda belum memiliki pesanan.")
 
