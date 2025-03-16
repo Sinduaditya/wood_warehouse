@@ -1,0 +1,25 @@
+{
+  "name": "wood_warehouse",
+  "version": "1.0.0",
+  "description": "Wood Warehouse Management System adalah aplikasi berbasis web yang dikembangkan menggunakan **Streamlit** untuk mengelola inventaris kayu, supplier, pelanggan, dan pesanan dalam gudang.",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sinduaditya/wood_warehouse.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Sinduaditya/wood_warehouse/issues"
+  },
+  "homepage": "https://github.com/Sinduaditya/wood_warehouse#readme",
+  "dependencies": {
+    "express": "^4.21.2",
+    "mysql2": "^3.13.0"
+  }
+}
