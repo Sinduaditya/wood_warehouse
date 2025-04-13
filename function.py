@@ -121,12 +121,11 @@ def lihat_pesanan():
         })
 
         # Format angka di kolom harga agar lebih rapi
-        df["Total Harga"] = df["Total Harga"].apply(lambda x: f"Rp. {x:,.0f}".replace(",","."))
+        df["Total Harga"] = df["Total Harga"].apply(lambda x: f"Rp. {x:,.0f}".replace(",", "."))
         
         # Format tanggal agar lebih mudah dibaca
         df["Tanggal Pemesanan"] = pd.to_datetime(df["Tanggal Pemesanan"], format='ISO8601', errors='coerce').dt.strftime("%d %B %Y")
         df["Waktu Dibuat"] = pd.to_datetime(df["Waktu Dibuat"], format='ISO8601', errors='coerce').dt.strftime("%d %B %Y  Jam : %H:%M")
-
 
         # Set indeks ke "Order ID" sebelum styling
         df.set_index("Order ID", inplace=True)
@@ -142,7 +141,7 @@ def lihat_pesanan():
             }
             return warna.get(val, "")  # Mengembalikan style CSS
 
-        status_filter = st.selectbox("Filter Status", ["Semua", "Shipped", "Cancelled", "Pending","Completed","Paid"])
+        status_filter = st.selectbox("Filter Status", ["Semua", "Shipped", "Cancelled", "Pending", "Completed", "Paid"])
         if status_filter != "Semua":
             df = df[df["Status Pesanan"] == status_filter]
         # Terapkan styling pada kolom "Status Pesanan"
@@ -151,13 +150,13 @@ def lihat_pesanan():
         # Tampilkan tabel
         st.dataframe(styled_df, use_container_width=True)
         
-        # Tambahkan fitur pembayaran
-        st.subheader("💰 Bayar Pesanan")
+        # Tambahkan fitur pembayaran dan pembatalan
+        st.subheader("💰 Bayar atau Batalkan Pesanan")
         
-        # Get the raw data for processing payments
+        # Get the raw data for processing payments or cancellations
         raw_data = response.data
         
-        # Create payment section for each order
+        # Create payment or cancellation section for each order
         for order in raw_data:
             order_id = order['id']
             total_price = order['total_price']
@@ -165,7 +164,7 @@ def lihat_pesanan():
             
             # Only show payment option for orders that are not paid/cancelled
             if status != "Paid" and status != "Cancelled":
-                with st.expander(f"Bayar Order ID: {order_id} - Total: Rp. {total_price:,.0f}".replace(",",".")):
+                with st.expander(f"Order ID: {order_id} - Total: Rp. {total_price:,.0f}".replace(",", ".")):
                     with st.form(key=f"payment_form_{order_id}"):
                         st.write("### Form Pembayaran")
                         
@@ -177,7 +176,7 @@ def lihat_pesanan():
                         )
                         
                         # Display amount (read-only)
-                        st.write(f"**Total Pembayaran:** Rp. {total_price:,.0f}".replace(",","."))
+                        st.write(f"**Total Pembayaran:** Rp. {total_price:,.0f}".replace(",", "."))
                         
                         # Payment date
                         payment_date = st.date_input(
@@ -214,12 +213,38 @@ def lihat_pesanan():
                                     
                                     st.success(f"✅ Pembayaran untuk Order ID {order_id} berhasil! Status telah diperbarui.")
                                     st.balloons()
+                                    st.info("💡 Pesanan Anda telah berhasil dibayar. Terima kasih!")
                                     
                                     # Refresh the page
                                     st.rerun()
                                 
                             except Exception as e:
                                 st.error(f"❌ Terjadi kesalahan: {e}")
+            
+            # Only show cancel option for orders with status "Pending"
+            if status == "Pending":
+                if st.button(f"Batalkan Pesanan ID: {order_id}", key=f"cancel_order_{order_id}"):
+                    try:
+                        # Ambil detail pesanan untuk mengembalikan stok
+                        order_details = supabase.table("order_details").select("wood_type_id, quantity").eq("order_id", order_id).execute()
+                        
+                        if order_details.data:
+                            for detail in order_details.data:
+                                wood_type_id = detail["wood_type_id"]
+                                quantity = detail["quantity"]
+                                
+                                # Update stok kayu
+                                supabase.table("warehouse_stock").update({"quantity": supabase.table("warehouse_stock").select("quantity").eq("id", wood_type_id).execute().data[0]["quantity"] + quantity}).eq("id", wood_type_id).execute()
+                        
+                        # Hapus pesanan dan detailnya
+                        supabase.table("order_details").delete().eq("order_id", order_id).execute()
+                        supabase.table("orders").delete().eq("id", order_id).execute()
+                        
+                        st.success(f"✅ Pesanan ID {order_id} berhasil dibatalkan dan stok telah dikembalikan.")
+                        st.info("💡 Pesanan Anda telah berhasil dibatalkan.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Terjadi kesalahan saat membatalkan pesanan: {e}")
     else:
         st.info("📭 Anda belum memiliki pesanan.")
 
@@ -478,7 +503,7 @@ def tampilkan_jenis_kayu():
     # Tampilkan tabel
     st.dataframe(df, use_container_width=True)
 
-def tampilkan_stok_gudang():
+def tampilkan_stok_gudang():    
     st.subheader("🏢 Stok Gudang")
 
     # Query untuk mengambil data stok dengan join ke tabel kayu dan supplier
@@ -494,7 +519,7 @@ def tampilkan_stok_gudang():
     # Konversi data ke DataFrame
     df = pd.DataFrame(response.data)
 
-    # **Mengurai JSON object dari kolom wood_types dan suppliers**
+    # Mengurai JSON object dari kolom wood_types dan suppliers
     df["Nama Kayu"] = df["wood_types"].apply(lambda x: x["wood_name"] if isinstance(x, dict) else None)
     df["Kategori"] = df["wood_types"].apply(lambda x: x["category"] if isinstance(x, dict) else None)
     df["Nama Supplier"] = df["suppliers"].apply(lambda x: x["name"] if isinstance(x, dict) else None)
@@ -514,7 +539,6 @@ def tampilkan_stok_gudang():
     df["Tanggal Diterima"] = pd.to_datetime(df["Tanggal Diterima"], format='mixed', errors='coerce').dt.strftime("%d %B %Y")
     df["Tanggal Ditambahkan"] = pd.to_datetime(df["Tanggal Ditambahkan"], format='mixed', errors='coerce').dt.strftime("%d %B %Y - %H:%M")
 
-
     # Hapus kolom JSON yang sudah diurai
     df.drop(columns=["wood_types", "suppliers"], inplace=True)
 
@@ -522,7 +546,7 @@ def tampilkan_stok_gudang():
     df.set_index("ID Stok", inplace=True)
 
     # Filter status stok
-    status_filter = st.selectbox("Filter Status", ["Semua", "Available", "Reserved", "Sold"])
+    status_filter = st.selectbox("🔍 Filter Status", ["Semua", "Available", "Reserved", "Sold"], key="status_filter")
     if status_filter != "Semua":
         df = df[df["Status"] == status_filter]
 
@@ -530,8 +554,39 @@ def tampilkan_stok_gudang():
         st.info("📭 Tidak ada stok dengan status tersebut.")
         return
 
-    # Tampilkan tabel
-    st.dataframe(df, use_container_width=True)
+    # Tampilkan tabel dengan styling
+    st.dataframe(
+        df.style.format({
+            "Harga per Unit": "Rp {:,.2f}".format
+        }).background_gradient(cmap="Blues", subset=["Jumlah"]),
+        use_container_width=True
+    )
+
+    # Tambahkan tombol edit untuk setiap baris
+    for index, row in df.iterrows():
+        if st.button(f"✏️ Edit Stok ID: {index}", key=f"edit_button_{index}"):
+            with st.container():
+                st.write(f"### 🛠️ Edit Detail Stok ID: {index}")
+                with st.form(f"edit_form_{index}"):
+                    new_quantity = st.number_input("Jumlah", value=row["Jumlah"], min_value=0, step=1, key=f"quantity_{index}")
+                    new_unit = st.text_input("Satuan", value=row["Satuan"], key=f"unit_{index}")
+                    new_price_per_unit = st.number_input("Harga per Unit", value=row["Harga per Unit"], min_value=0.0, step=0.01, key=f"price_{index}")
+                    new_status = st.selectbox("Status", ["Available", "Reserved", "Sold"], index=["Available", "Reserved", "Sold"].index(row["Status"]), key=f"status_{index}")
+                    submitted = st.form_submit_button("💾 Simpan Perubahan")
+
+                    if submitted:
+                        try:
+                            # Update data di Supabase
+                            supabase.table("warehouse_stock").update({
+                                "quantity": new_quantity,
+                                "unit": new_unit,
+                                "price_per_unit": new_price_per_unit,
+                                "status": new_status
+                            }).eq("id", index).execute()
+                            st.success(f"✅ Stok ID {index} berhasil diperbarui!")
+                            st.experimental_rerun()  # Refresh halaman
+                        except Exception as e:
+                            st.error(f"❌ Terjadi kesalahan: {e}")
 
 def tampilkan_orders():
     st.subheader("📦 Daftar Pesanan (Orders)")
@@ -941,8 +996,15 @@ def get_orders():
     return {item['id']: item['id'] for item in response.data}
 
 def add_shipment(data):
-    # Simulasi fungsi untuk menambahkan data ke database
-    st.success(f"Data berhasil ditambahkan: {data}")
+    try:
+        # Insert data into the "shipments" table
+        response = supabase.table("shipments").insert(data).execute()
+        if response.data:
+            st.success(f"✅ Data berhasil ditambahkan: {data}")
+        else:
+            st.error("❌ Gagal menambahkan data ke database.")
+    except Exception as e:
+        st.error(f"❌ Terjadi kesalahan: {e}")
 
 def shipment_form():
     st.title("🚚 Tambah Pengiriman")
@@ -950,11 +1012,18 @@ def shipment_form():
     orders = get_orders()
 
     with st.form("shipment_form"):
-        order_id = st.selectbox("Order ID", list(orders.keys()),
-                                index=0, format_func=lambda x: x,
-                                placeholder="Cari Order ID...",)
-        tracking_number = st.text_input("Nomor Resi", placeholder="Masukkan nomor resi")
-        shipping_company = st.text_input("Perusahaan Pengiriman", placeholder="Contoh: JNE, J&T, SiCepat")
+        order_id = st.selectbox(
+            "Order ID", 
+            list(orders.keys()), 
+            index=0, 
+            format_func=lambda x: x, 
+            placeholder="Cari Order ID..."
+        )
+        # Generate tracking number dynamically based on selected order ID
+        tracking_number = st.text_input("Nomor Resi", value="TRK000", placeholder="Masukkan nomor resi")
+
+        # Select shipping company from predefined options
+        shipping_company = st.selectbox("Perusahaan Pengiriman", ["POS Indonesia", "JNE", "TIKI"])
         estimated_delivery = st.date_input("Perkiraan Tanggal Tiba")
         status = st.selectbox("Status", ["In Transit", "Delivered", "Failed"])
         submit_button = st.form_submit_button("Tambah Pengiriman")

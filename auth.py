@@ -65,6 +65,7 @@ def register():
 
         if response.data:
             st.success("✅ Registrasi berhasil! Silakan login.")
+            # st.write("Data yang akan dikirim:", data)
         else:
             st.error("❌ Registrasi gagal. Coba lagi.")
 # 🚪 Logout Function
