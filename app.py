@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from datetime import date
 from streamlit_option_menu import option_menu
 from auth import login, register, logout  # impoer dari auth.py
-from function import lihat_pesanan,lihat_pesanan_detail,status_pembayaran,status_pengiriman,shipment_form,add_shipment,get_suppliers,tambah_supplier,update_stock,tampilkan_stok_gudang,tampilkan_supplier,warehouse_stock_form,add_warehouse_stock,tampilkan_grafik_stok,order_form,add_order,add_order_details,get_orders,tampilkan_orders,tampilkan_detail_pesanan,tambah_kayu,tampilkan_pembayaran,tampilkan_jenis_kayu,tampilkan_pengiriman
+from function import lihat_pesanan,lihat_pesanan_detail,status_pembayaran,status_pengiriman,shipment_form,add_shipment,get_suppliers,tambah_supplier,update_stock,tampilkan_stok_gudang,tampilkan_supplier,warehouse_stock_form,add_warehouse_stock,tampilkan_grafik_stok,order_form,add_order,add_order_details,get_orders,tampilkan_orders,tampilkan_detail_pesanan,tambah_kayu,tampilkan_pembayaran,tampilkan_jenis_kayu,tampilkan_pengiriman,manajemen_user
 # Custom theme and styling
 st.set_page_config(
     page_title="Wood Warehouse Management",
@@ -114,38 +114,8 @@ def dashboard():
             with st.container():
                 shipment_form()
         elif menu == "Manajemen Pengguna":
-            st.subheader("👤 Manajemen Pengguna")
-            
-            # Enhanced user list with search and tabs
-            customers = supabase.table("customers").select("id, name, email, created_at").execute()
-            
-            if customers.data:
-                # Search filter
-                search = st.text_input("🔍 Search users by name or email", "")
-                
-                if search:
-                    filtered_customers = [c for c in customers.data if search.lower() in c.get('name', '').lower() or 
-                                         search.lower() in c.get('email', '').lower()]
-                else:
-                    filtered_customers = customers.data
-                
-                # Convert to DataFrame for better display
-                df = pd.DataFrame(filtered_customers)
-                df['created_at'] = pd.to_datetime(df['created_at']).dt.strftime("%d %B %Y")
-                df = df.rename(columns={
-                    "id": "ID",
-                    "name": "Company Name",
-                    "email": "Email",
-                    "created_at": "Registration Date"
-                })
-                
-                # Display with highlighting
-                st.dataframe(df, use_container_width=True)
-                
-                st.markdown(f"**Total Users:** {len(filtered_customers)} (Filtered) / {len(customers.data)} (Total)")
-            else:
-                st.info("No users registered in the system.")
-
+            with st.container():
+                manajemen_user()
     else:  # Customer Dashboard
         # Enhanced customer sidebar navigation
         with st.sidebar:

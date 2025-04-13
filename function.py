@@ -1049,6 +1049,62 @@ def get_available_wood():
         item['wood_types']['wood_name']: item for item in response.data
     }
 
+def manajemen_user():
+    st.subheader("👤 Manajemen Pengguna")
+
+    # Enhanced user list with search and tabs
+    customers = supabase.table("customers").select("id, name, email, created_at").execute()
+
+    if customers.data:
+        # Search filter
+        search = st.text_input("🔍 Search users by name or email", "")
+
+        if search:
+            filtered_customers = [c for c in customers.data if search.lower() in c.get('name', '').lower() or 
+                                 search.lower() in c.get('email', '').lower()]
+        else:
+            filtered_customers = customers.data
+
+        for customer in filtered_customers:
+            st.markdown("---")
+            col1, col2, col3 = st.columns([4, 3, 3])
+            with col1:
+                st.markdown(f"{customer['name']}\n\n📧 {customer['email']}\n\n🆔 ID: {customer['id']}")
+            with col2:
+                with st.expander("✏ Edit"):
+                    new_name = st.text_input(f"Nama Perusahaan - {customer['id']}", value=customer['name'], key=f"name_{customer['id']}")
+                    new_email = st.text_input(f"Email - {customer['id']}", value=customer['email'], key=f"email_{customer['id']}")
+                    if st.button("🔄 Update", key=f"update_{customer['id']}"):
+                        supabase.table("customers").update({"name": new_name, "email": new_email})\
+                            .eq("id", customer['id']).execute()
+                        st.success("✅ Data diperbarui!")
+            with col3:
+                with st.expander("🗑 Hapus"):
+                    confirm = st.checkbox(f"Konfirmasi hapus {customer['name']}", key=f"confirm_{customer['id']}")
+                    if st.button("❌ Hapus", key=f"delete_{customer['id']}") and confirm:
+                        supabase.table("customers").delete().eq("id", customer['id']).execute()
+                        st.success("✅ Pelanggan dihapus.")
+
+            with st.expander("📄 Lihat Riwayat Transaksi"):
+                orders = supabase.table("orders").select("id, order_date, total_price, status").eq("customer_id", customer['id']).execute()
+                if orders.data:
+                    df_orders = pd.DataFrame(orders.data)
+                    df_orders['order_date'] = pd.to_datetime(df_orders['order_date'], format='ISO8601', errors='coerce').dt.strftime("%d %B %Y")
+                    df_orders = df_orders.rename(columns={
+                        "id": "ID Order",
+                        "order_date": "Tanggal Pemesanan",
+                        "total_price": "Total Harga",
+                        "status": "Status"
+                    })
+                    st.dataframe(df_orders, use_container_width=True)
+                else:
+                    st.info("📭 Pelanggan ini belum memiliki transaksi.")
+
+        st.markdown(f"*Total Users:* {len(filtered_customers)} (Filtered) / {len(customers.data)} (Total)")
+
+    else:
+        st.info("No users registered in the system.")
+
 # Fungsi untuk menambah pesanan
 def add_order(data):
     response = supabase.table('orders').insert(data).execute()
